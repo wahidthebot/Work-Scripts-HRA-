@@ -1,4 +1,9 @@
-﻿Add-Type -AssemblyName PresentationFramework
+<#
+    Copyright (c) 2025 Wahid Hussain
+    This script is licensed under the MIT License.
+#>
+ 
+ Add-Type -AssemblyName PresentationFramework
 
 # Get the directory of the currently running script
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition

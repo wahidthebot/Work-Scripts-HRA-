@@ -17,7 +17,7 @@
             <Button x:Name="LanExtensionButton" Content="LAN Extension" Width="150" Height="40" Margin="10,0,10,0"
                     FontSize="16" FontWeight="Bold" Background="#FF0078D7" Foreground="White" BorderBrush="Transparent"
                     Cursor="Hand"/>
-            <Button x:Name="GroupManagementButton" Content="Group Management" Width="150" Height="40" Margin="10,0,10,0"
+            <Button x:Name="GroupManagementButton" Content="Group Management" Width="180" Height="40" Margin="10,0,10,0"
                     FontSize="16" FontWeight="Bold" Background="#FF0078D7" Foreground="White" BorderBrush="Transparent"
                     Cursor="Hand"/>
             <Button x:Name="MFAUpdateButton" Content="MFA Update" Width="150" Height="40" Margin="10,0,10,0"

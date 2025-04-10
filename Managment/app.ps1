@@ -3,7 +3,7 @@
     This script is licensed under the MIT License.
 #>
  
- Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName PresentationFramework
 
 # Get the directory of the currently running script
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -81,25 +81,58 @@ $remoteAccessSubmitButton.Add_Click({
         return
     }
 
-    try {
-        # Verify if user is a member of specific groups and add if not
-        $groups = @("GS-MFA-IPADusers", "GS-MFA-MACusers", "GS-MFA-NewRadiusAuthentication")
-        $notMembers = @()
+ try {
+    # --- ADD USER TO HRARDPUsers3 (IF NOT ALREADY A MEMBER) ---
+    $groupToAdd = "HRARDPUsers3"
+    $user = Get-ADUser -Identity $userLANID -Properties memberof -ErrorAction Stop
 
-        foreach ($group in $groups) {
-            $groupDN = (Get-ADGroup -Identity $group).DistinguishedName
-            if (-not (Get-ADUser -Identity $userLANID -Properties memberof | Where-Object { $_.memberof -contains $groupDN })) {
-                Add-ADGroupMember -Identity $group -Members $userLANID
-                $notMembers += $group
+    # Check if user is already in HRARDPUsers3
+    $groupDN = (Get-ADGroup -Identity $groupToAdd -ErrorAction Stop).DistinguishedName
+    $isMember = $user.memberof -contains $groupDN
+
+    if (-not $isMember) {
+        Add-ADGroupMember -Identity $groupToAdd -Members $userLANID -ErrorAction Stop
+        $outputTextBox.AppendText("SUCCESS: User added to $groupToAdd.`n")
+    } else {
+        $outputTextBox.AppendText("INFO: User is already in $groupToAdd.`n")
+    }
+
+    # --- REMOVE USER FROM UNWANTED GROUPS (IF THEY EXIST) ---
+    $groupsToRemove = @("GS-MFA-IPADusers", "GS-MFA-MACusers", "GS-MFA-NewRadiusAuthentication")
+    $removedGroups = @()
+
+    foreach ($group in $groupsToRemove) {
+        try {
+            $groupObj = Get-ADGroup -Identity $group -ErrorAction Stop
+            $groupDN = $groupObj.DistinguishedName
+
+            # Check if user is a member before removing
+            if ($user.memberof -contains $groupDN) {
+                Remove-ADGroupMember -Identity $group -Members $userLANID -Confirm:$false -ErrorAction Stop
+                $removedGroups += $group
+                $outputTextBox.AppendText("SUCCESS: User removed from $group.`n")
             }
+        } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+            $outputTextBox.AppendText("INFO: Group $group does not exist (skipped).`n")
+        } catch {
+            $outputTextBox.AppendText("ERROR: Failed to process $group - $($_.Exception.Message)`n")
         }
+    }
 
-        # Inform the user about the groups they were added to
-        if ($notMembers.Count -gt 0) {
-            $outputTextBox.AppendText("The user was not a part of the following groups and has been added: $($notMembers -join ', ')`n")
-        } else {
-            $outputTextBox.AppendText("The user is already a member of all the required groups.`n")
-        }
+    # Summary
+    if ($removedGroups.Count -gt 0) {
+        $outputTextBox.AppendText("SUMMARY: User was removed from: $($removedGroups -join ', ').`n")
+    } else {
+        $outputTextBox.AppendText("SUMMARY: No groups were removed (user was not a member or groups didn't exist).`n")
+    }
+
+    # Output results
+    if ($notMembers.Count -gt 0) {
+        $outputTextBox.AppendText("The user was added to the following groups: $($notMembers -join ', ')`n")
+    } else {
+        $outputTextBox.AppendText("The user is already a member of all required groups.`n")
+    }
+
 
         # Check if the computer exists and ping to check if it's online
         $computer = Get-ADComputer -Identity $computerName -ErrorAction Stop
@@ -187,14 +220,7 @@ $lanExtensionSubmitButton.Add_Click({
             Set-ADUser -Identity $user -AccountExpirationDate (Get-Date -Date "12/31/9999") # Temporary date to untick the box
         }
 
-        # Check if the extension date is more than one year ahead
-        $currentDate = (Get-Date).Date
-        $maxExtendDate = $currentDate.AddYears(1)
-
-        if ([datetime]::ParseExact($extendDate, 'MM/dd/yyyy', $null).Date -gt $maxExtendDate) {
-            $outputTextBox.AppendText("Cannot extend the account more than one year ahead in time.`n")
-            return
-        }
+    
 
         # Calculate the new extension date by adding one day to the given date
         $newExtendDate = (Get-Date -Date $extendDate).AddDays(1)
@@ -220,6 +246,12 @@ $lanExtensionSubmitButton.Add_Click({
 
     } catch {
         $outputTextBox.AppendText("Error: $_`n")
+    } finally {
+        # Clear the fields after submission
+        $window.FindName("LanExtensionUserLANIDTextBox").Text = ""
+        $window.FindName("LanExtensionDateTextBox").Text = ""
+        $window.FindName("LanExtensionTicketNumberTextBox").Text = ""
+        # Do not clear the Initials field
     }
 })
 

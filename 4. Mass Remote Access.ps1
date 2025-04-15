@@ -6,6 +6,26 @@
 # Path to the CSV file
 $csvFilePath = "C:\path\to\your\file.csv"  # <-- Update this path
 
+# Display group selection options
+Write-Host "`nHRARDPUsers Group Selection Options:"
+Write-Host "1 - HRARDPUsers1"
+Write-Host "2 - HRARDPUsers2"
+Write-Host "3 - HRARDPUsers3"
+$groupSelection = Read-Host "Enter which group to add users to (1-3)"
+
+# Map selection to group name
+$groupToAdd = switch ($groupSelection) {
+    "1" { "HRARDPUsers1" }
+    "2" { "HRARDPUsers2" }
+    "3" { "HRARDPUsers3" }
+    default { 
+        Write-Host "Invalid selection. Defaulting to HRARDPUsers3."
+        "HRARDPUsers3" 
+    }
+}
+
+Write-Host "`nProcessing CSV file with group selection: $groupToAdd`n"
+
 # Process each entry in the CSV file
 Import-Csv -Path $csvFilePath | ForEach-Object {
     $userLANID = $_.lanID
@@ -18,8 +38,7 @@ Import-Csv -Path $csvFilePath | ForEach-Object {
         try {
             $user = Get-ADUser -Identity $userLANID -Properties memberof -ErrorAction Stop
 
-            # 1. ADD USER TO HRARDPUsers3 (IF NOT ALREADY A MEMBER)
-            $groupToAdd = "HRARDPUsers3"
+            # 1. ADD USER TO SELECTED GROUP (IF NOT ALREADY A MEMBER)
             $groupDN = (Get-ADGroup -Identity $groupToAdd -ErrorAction Stop).DistinguishedName
             if (-not ($user.memberof -contains $groupDN)) {
                 Add-ADGroupMember -Identity $groupToAdd -Members $userLANID -ErrorAction Stop

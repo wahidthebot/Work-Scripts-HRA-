@@ -16,13 +16,30 @@ function Get-UserInput {
 $computerName = Get-UserInput "Please enter the computer name: "
 $userLANID = Get-UserInput "Please enter the user LAN ID: "
 
+# Get group selection from user
+Write-Host "`nSelect which HRARDPUsers group to add the user to:"
+Write-Host "1 - HRARDPUsers1"
+Write-Host "2 - HRARDPUsers2"
+Write-Host "3 - HRARDPUsers3"
+$groupSelection = Get-UserInput "Enter your choice (1-3): "
+
+# Map selection to group name
+$groupToAdd = switch ($groupSelection) {
+    "1" { "HRARDPUsers1" }
+    "2" { "HRARDPUsers2" }
+    "3" { "HRARDPUsers3" }
+    default { 
+        Write-Host "Invalid selection. Defaulting to HRARDPUsers3."
+        "HRARDPUsers3" 
+    }
+}
+
 # --- GROUP MANAGEMENT SECTION ---
 try {
-    # 1. ADD USER TO HRARDPUsers3 (IF NOT ALREADY A MEMBER)
-    $groupToAdd = "HRARDPUsers3"
+    # 1. ADD USER TO SELECTED GROUP (IF NOT ALREADY A MEMBER)
     $user = Get-ADUser -Identity $userLANID -Properties memberof -ErrorAction Stop
     
-    # Check if user is already in HRARDPUsers3
+    # Check if user is already in the selected group
     $groupDN = (Get-ADGroup -Identity $groupToAdd -ErrorAction Stop).DistinguishedName
     if (-not ($user.memberof -contains $groupDN)) {
         Add-ADGroupMember -Identity $groupToAdd -Members $userLANID -ErrorAction Stop

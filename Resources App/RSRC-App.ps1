@@ -1,3 +1,8 @@
+<#
+    Copyright (c) 2025 Wahid Hussain
+    This script is licensed under the MIT License.
+#>
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()

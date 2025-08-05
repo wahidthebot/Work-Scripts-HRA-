@@ -1,4 +1,4 @@
-﻿# ==== Tab 5: Duplicate Finder ====
+# ==== Tab 5: Duplicate Finder ====
 $tabPage5 = New-Object System.Windows.Forms.TabPage
 $tabPage5.Text = "Duplicate Finder"
 $tabPage5.BackColor = "#ffffff"
@@ -76,45 +76,48 @@ function Find-Duplicates {
         [string]$email,
         [bool]$strict
     )
+
     $results = @()
-    $firstName = ""
-    $lastName = "*"
 
-    if ($fullName) {
-        $parts = $fullName -split "\s+", 2
-        $firstName = $parts[0]
-        if ($parts.Length -gt 1) { $lastName = $parts[1] }
-    }
-
+    # Handle email first
     if ($email) {
-        $emailMatches = Get-ADUser -Filter { mail -eq $email } -Properties * |
+        $emailMatches = Get-ADUser -Filter "mail -eq '$email'" -Properties * |
             Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
         $results += $emailMatches
     }
 
-    if ($firstName) {
-        $nameMatches = Get-ADUser -Filter "sn -like '$lastName'" -Properties * |
-            Where-Object {
-                $gn = $_.GivenName
-                if (-not $gn) { return $false }
+    if ($fullName) {
+        # Split name into parts (e.g., "Maria Buck" => "Maria", "Buck")
+        $nameParts = $fullName -split '\s+' | Where-Object { $_ -ne '' }
 
-                if ($strict) {
-                    return ($gn -eq $firstName)
-                } else {
-                    return ($gn -like "*$firstName*") -and
-                           ([math]::Abs($gn.Length - $firstName.Length) -le 4)
-                }
-            } |
+        # Build a filter that searches each part across multiple attributes
+        $filterTerms = foreach ($part in $nameParts) {
+            "(|" +
+                "(givenName=*$part*)" +
+                "(sn=*$part*)" +
+                "(displayName=*$part*)" +
+                "(cn=*$part*)" +
+                "(samAccountName=*$part*)" +
+                "(userPrincipalName=*$part*)" +
+                "(mail=*$part*)" +
+            ")"
+        }
+
+        # Combine with AND to ensure all terms are matched
+        $finalFilter = "(&" + ($filterTerms -join "") + ")"
+
+        $nameMatches = Get-ADUser -LDAPFilter $finalFilter -Properties GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description |
             Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
 
         $results += $nameMatches
 
-        foreach ($u in $nameMatches) {
-            if ($u.mail) {
-                $sameMail = Get-ADUser -Filter "mail -eq '$($u.mail)'" -Properties * |
-                    Where-Object { $_.SamAccountName -ne $u.SamAccountName } |
+        # Search for others with same email as duplicates
+        foreach ($user in $nameMatches) {
+            if ($user.mail) {
+                $dupes = Get-ADUser -Filter "mail -eq '$($user.mail)'" -Properties * |
+                    Where-Object { $_.SamAccountName -ne $user.SamAccountName } |
                     Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
-                $results += $sameMail
+                $results += $dupes
             }
         }
     }
@@ -122,10 +125,13 @@ function Find-Duplicates {
     return $results
 }
 
+
+
+
 # Single Search Button
 $btnSearchDupes.Add_Click({
     try {
-        Import-Module ActiveDirectory
+        Import-Module ActiveDirectory -ErrorAction Stop
         $name = $txtNameInput.Text.Trim()
         $email = $txtEmailInput.Text.Trim()
         $strict = $chkStrict.Checked
@@ -157,7 +163,7 @@ $btnSearchDupes.Add_Click({
 # Bulk Upload Button
 $btnBulkUpload.Add_Click({
     try {
-        Import-Module ActiveDirectory
+        Import-Module ActiveDirectory -ErrorAction Stop
 
         $dialog = New-Object System.Windows.Forms.OpenFileDialog
         $dialog.Filter = "CSV files (*.csv)|*.csv"
@@ -176,11 +182,11 @@ $btnBulkUpload.Add_Click({
 
             if (-not $fullName -and -not $email) { continue }
 
-          if ($email) {
-    $header = "# ==== Results for: $fullName [$email] ===="
-} else {
-    $header = "# ==== Results for: $fullName ===="
-}
+            if ($email) {
+                $header = "# ==== Results for: $fullName [$email] ===="
+            } else {
+                $header = "# ==== Results for: $fullName ===="
+            }
 
             $matches = Find-Duplicates -fullName $fullName -email $email -strict $strict
 

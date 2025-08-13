@@ -5,7 +5,7 @@ $tabPage5.BackColor = "#ffffff"
 
 $groupBox8 = New-Object System.Windows.Forms.GroupBox
 $groupBox8.Location = New-Object System.Drawing.Point(20, 20)
-$groupBox8.Size = New-Object System.Drawing.Size(1600, 620)   # widened from 800 to 1600
+$groupBox8.Size = New-Object System.Drawing.Size(1600, 620)
 $groupBox8.Text = "Search for Duplicate Users"
 $groupBox8.ForeColor = "#0066cc"
 
@@ -18,19 +18,19 @@ $groupBox8.Controls.Add($labelName)
 
 $txtNameInput = New-Object System.Windows.Forms.TextBox
 $txtNameInput.Location = New-Object System.Drawing.Point(150, 30)
-$txtNameInput.Size = New-Object System.Drawing.Size(500, 25)  # widened from 250
+$txtNameInput.Size = New-Object System.Drawing.Size(500, 25)
 $groupBox8.Controls.Add($txtNameInput)
 
 # Email Label
 $labelEmail = New-Object System.Windows.Forms.Label
-$labelEmail.Location = New-Object System.Drawing.Point(670, 30)  # moved right
+$labelEmail.Location = New-Object System.Drawing.Point(670, 30)
 $labelEmail.Size = New-Object System.Drawing.Size(80, 20)
 $labelEmail.Text = "Email:"
 $groupBox8.Controls.Add($labelEmail)
 
 $txtEmailInput = New-Object System.Windows.Forms.TextBox
-$txtEmailInput.Location = New-Object System.Drawing.Point(760, 30)  # moved right
-$txtEmailInput.Size = New-Object System.Drawing.Size(500, 25)  # widened from 250
+$txtEmailInput.Location = New-Object System.Drawing.Point(760, 30)
+$txtEmailInput.Size = New-Object System.Drawing.Size(500, 25)
 $groupBox8.Controls.Add($txtEmailInput)
 
 # Strict Mode Checkbox
@@ -43,7 +43,7 @@ $groupBox8.Controls.Add($chkStrict)
 
 # Search Button
 $btnSearchDupes = New-Object System.Windows.Forms.Button
-$btnSearchDupes.Location = New-Object System.Drawing.Point(760, 65)  # moved right
+$btnSearchDupes.Location = New-Object System.Drawing.Point(760, 65)
 $btnSearchDupes.Size = New-Object System.Drawing.Size(150, 30)
 $btnSearchDupes.Text = "Find Duplicates"
 $btnSearchDupes.BackColor = "#FF9800"
@@ -52,7 +52,7 @@ $groupBox8.Controls.Add($btnSearchDupes)
 
 # Bulk Upload Button
 $btnBulkUpload = New-Object System.Windows.Forms.Button
-$btnBulkUpload.Location = New-Object System.Drawing.Point(920, 65)  # moved right
+$btnBulkUpload.Location = New-Object System.Drawing.Point(920, 65)
 $btnBulkUpload.Size = New-Object System.Drawing.Size(120, 30)
 $btnBulkUpload.Text = "Bulk from CSV"
 $btnBulkUpload.BackColor = "#4CAF50"
@@ -62,7 +62,7 @@ $groupBox8.Controls.Add($btnBulkUpload)
 # Results TextBox
 $txtResults = New-Object System.Windows.Forms.TextBox
 $txtResults.Location = New-Object System.Drawing.Point(20, 110)
-$txtResults.Size = New-Object System.Drawing.Size(1560, 380)  # widened from 760
+$txtResults.Size = New-Object System.Drawing.Size(1560, 380)
 $txtResults.Multiline = $true
 $txtResults.ScrollBars = "Vertical"
 $txtResults.ReadOnly = $true
@@ -72,7 +72,7 @@ $groupBox8.Controls.Add($txtResults)
 # ==== Column Selection ====
 $labelColumns = New-Object System.Windows.Forms.Label
 $labelColumns.Location = New-Object System.Drawing.Point(20, 500)
-$labelColumns.Size = New-Object System.Drawing.Size(200, 20)
+$labelColumns.Size = New-Object System.Drawing.Size(250, 20)
 $labelColumns.Text = "Select columns to include in CSV:"
 $groupBox8.Controls.Add($labelColumns)
 
@@ -82,22 +82,19 @@ function Add-ColumnCheckbox {
     $cb.Text = $text
     $cb.Checked = $true
     $cb.Location = New-Object System.Drawing.Point($x, $y)
-    $cb.Size = New-Object System.Drawing.Size(150, 20)
+    $cb.Size = New-Object System.Drawing.Size(170, 20)
     $groupBox8.Controls.Add($cb)
     return $cb
 }
 
 $cbGivenName       = Add-ColumnCheckbox "GivenName"         20  520
-$cbSurname         = Add-ColumnCheckbox "Surname"           180 520
-$cbSamAccountName  = Add-ColumnCheckbox "SamAccountName"    340 520
-$cbMail            = Add-ColumnCheckbox "mail"              500 520
-$cbUPN             = Add-ColumnCheckbox "UserPrincipalName" 660 520
-$cbEnabled         = Add-ColumnCheckbox "Enabled"           820 520
+$cbSurname         = Add-ColumnCheckbox "Surname"           210 520
+$cbSamAccountName  = Add-ColumnCheckbox "SamAccountName"    380 520
+$cbMail            = Add-ColumnCheckbox "mail"              590 520
+$cbUPN             = Add-ColumnCheckbox "UserPrincipalName" 760 520
+$cbEnabled         = Add-ColumnCheckbox "Enabled"           930 520
 $cbDescription     = Add-ColumnCheckbox "Description"        980 520
-
-# ... (rest of your code remains unchanged)
-
-
+$cbDistinguished   = Add-ColumnCheckbox "DistinguishedName" 1155 520  # NEW FIELD
 
 function Get-SelectedColumns {
     $cols = @()
@@ -108,6 +105,7 @@ function Get-SelectedColumns {
     if ($cbUPN.Checked)            { $cols += "UserPrincipalName" }
     if ($cbEnabled.Checked)        { $cols += "Enabled" }
     if ($cbDescription.Checked)    { $cols += "Description" }
+    if ($cbDistinguished.Checked)  { $cols += "DistinguishedName" }  # NEW FIELD
     return $cols
 }
 
@@ -124,7 +122,7 @@ function Find-Duplicates {
     # Handle email first
     if ($email) {
         $emailMatches = Get-ADUser -Filter "mail -eq '$email'" -Properties * |
-            Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
+            Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description, DistinguishedName
         $results += $emailMatches
     }
 
@@ -147,8 +145,8 @@ function Find-Duplicates {
 
         $finalFilter = "(&" + ($filterTerms -join "") + ")"
 
-        $nameMatches = Get-ADUser -LDAPFilter $finalFilter -Properties GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description |
-            Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
+        $nameMatches = Get-ADUser -LDAPFilter $finalFilter -Properties GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description, DistinguishedName |
+            Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description, DistinguishedName
 
         $results += $nameMatches
 
@@ -156,7 +154,7 @@ function Find-Duplicates {
             if ($user.mail) {
                 $dupes = Get-ADUser -Filter "mail -eq '$($user.mail)'" -Properties * |
                     Where-Object { $_.SamAccountName -ne $user.SamAccountName } |
-                    Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description
+                    Select GivenName, Surname, SamAccountName, mail, UserPrincipalName, Enabled, Description, DistinguishedName
                 $results += $dupes
             }
         }

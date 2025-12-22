@@ -4,7 +4,7 @@
 # =========================
 $DefaultOU = "OU=Created accounts,OU=WahidTest,OU=Wahid,OU=NewUserStaging-EAMO,DC=windows,DC=nyc,DC=hra,DC=nycnet"
 $InternetGroup = "gs-dssallowedinternetusers"
-$DefaultPassword = Set
+$DefaultPassword = "Password8"
 
 # Function to check for existing users (SIMPLIFIED and FAST)
 function Check-ForDuplicateUsers {
@@ -187,19 +187,19 @@ function Import-UserFromCSV {
         if ($csvOU) {
             switch -Regex ($csvOU.ToLower()) {
                 "accis" { 
-                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -eq "ACCIS" } | Select-Object -First 1
+                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -match "ACCIS" } | Select-Object -First 1
                     if ($selectedItem) { $global:createUserOUComboBox.SelectedItem = $selectedItem }
                 }
                 "mcs"   { 
-                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -eq "MCS" } | Select-Object -First 1
+                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -match "MCS" } | Select-Object -First 1
                     if ($selectedItem) { $global:createUserOUComboBox.SelectedItem = $selectedItem }
                 }
                 "pactweb" { 
-                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -eq "PACTWEB" } | Select-Object -First 1
+                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -match "PACTWEB" } | Select-Object -First 1
                     if ($selectedItem) { $global:createUserOUComboBox.SelectedItem = $selectedItem }
                 }
                 "vsp-web|stars" { 
-                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -eq "VSP-Web | STARS" } | Select-Object -First 1
+                    $selectedItem = $global:createUserOUComboBox.Items | Where-Object { $_.Content -match "VSP-Web.*STARS" } | Select-Object -First 1
                     if ($selectedItem) { $global:createUserOUComboBox.SelectedItem = $selectedItem }
                 }
             }
@@ -283,7 +283,7 @@ $global:createUserSubmitButton.Add_Click({
                 $global:outputTextBox.AppendText("No duplicates found. Proceeding with creation...`n")
             }
             
-            # Determine account type code
+            # Determine account type code for EmployeeType attribute
             $accountCode = switch ($type) {
                 "Employee (E)" { "E" }
                 "Temp (T)" { "T" }
@@ -291,18 +291,18 @@ $global:createUserSubmitButton.Add_Click({
                 default { "E" }
             }
             
-            # Determine OU based on selection
+            # Determine OU based on selection (using pattern matching)
             switch ($ouSelection) {
-                "ACCIS" {
+                {$_ -match "ACCIS"} {
                     $targetOU = "OU=ACCIS-AzureAD,OU=DMZ-AzureAD,OU=DMZ,OU=HRA Resources,DC=windows,DC=nyc,DC=hra,DC=nycnet"
                 }
-                "MCS" {
+                {$_ -match "MCS"} {
                     $targetOU = "OU=MCS-AzureAD,OU=DMZ-AzureAD,OU=DMZ,OU=HRA Resources,DC=windows,DC=nyc,DC=hra,DC=nycnet"
                 }
-                "PACTWEB" {
+                {$_ -match "PACTWEB"} {
                     $targetOU = "OU=PACTWEB-AzureAD,OU=DMZ-AzureAD,OU=DMZ,OU=HRA Resources,DC=windows,DC=nyc,DC=hra,DC=nycnet"
                 }
-                "VSP-Web | STARS" {
+                {$_ -match "VSP-Web.*STARS"} {
                     $targetOU = "OU=VSP-Web_STARS_SEAMS-AzureAD,OU=DMZ-AzureAD,OU=DMZ,OU=HRA Resources,DC=windows,DC=nyc,DC=hra,DC=nycnet"
                 }
                 default {
@@ -389,15 +389,20 @@ $global:createUserSubmitButton.Add_Click({
                 }
             }
             
-            # Set extension attributes based on organization
-            $extensionAttribute1 = $org
-            $extensionAttribute2 = $accountCode
-            
-            Set-ADUser -Identity $lanID -Replace @{
-                extensionAttribute1 = $extensionAttribute1
-                extensionAttribute2 = $extensionAttribute2
+            # Set EmployeeType attribute and organization extension attribute
+            $userAttributes = @{
+                EmployeeType = $accountCode
             }
-            $global:outputTextBox.AppendText("Set extension attributes: Org=$org, Type=$accountCode`n")
+            
+            if ($org) {
+                $userAttributes.extensionAttribute1 = $org
+            }
+            
+            Set-ADUser -Identity $lanID -Replace $userAttributes
+            $global:outputTextBox.AppendText("Set Employee Type: $accountCode`n")
+            if ($org) {
+                $global:outputTextBox.AppendText("Set Organization: $org`n")
+            }
             
             $global:outputTextBox.AppendText("`n" + "=" * 40 + "`n")
             $global:outputTextBox.AppendText("USER CREATION COMPLETE`n")
@@ -406,6 +411,7 @@ $global:createUserSubmitButton.Add_Click({
             $global:outputTextBox.AppendText("UPN: $upn`n")
             $global:outputTextBox.AppendText("OU: $targetOU`n")
             $global:outputTextBox.AppendText("Organization: $org`n")
+            $global:outputTextBox.AppendText("Employee Type: $accountCode`n")
             $global:outputTextBox.AppendText("Password change at logon: $changePasswordAtLogon`n")
             $global:outputTextBox.AppendText("=" * 40 + "`n")
             

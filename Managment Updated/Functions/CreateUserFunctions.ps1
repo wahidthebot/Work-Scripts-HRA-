@@ -4,7 +4,7 @@
 # =========================
 $DefaultOU = "OU=Created accounts,OU=WahidTest,OU=Wahid,OU=NewUserStaging-EAMO,DC=windows,DC=nyc,DC=hra,DC=nycnet"
 $InternetGroup = "gs-dssallowedinternetusers"
-$DefaultPassword = "Password8"
+$DefaultPassword = Set
 
 # Function to check for existing users (SIMPLIFIED and FAST)
 function Check-ForDuplicateUsers {
